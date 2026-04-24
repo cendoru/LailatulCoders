@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SupplierServiceImpl implements SupplierService {
 
+    private static final Logger logger = LoggerFactory.getLogger(SupplierServiceImpl.class);
+
     // productId: list of suppliers
     private Map<Integer, List<Supplier>> supplierDB = new HashMap<>();
 
@@ -24,35 +26,40 @@ public class SupplierServiceImpl implements SupplierService {
     @Override
     public void addSupplier(Product product, Supplier supplier) {
         supplierDB.computeIfAbsent(product.getId(), k -> new ArrayList<>()).add(supplier);
+        
+        logger.info("[SUPPLIER ADDED] Product: {} | Supplier: {}", product.getId(), supplier.getName());
     }
 
     @Override
     public List<Supplier> getAllSuppliers(Product product) {
-        return supplierDB.getOrDefault(product.getId(), new ArrayList<>());
+        List<Supplier> list = supplierDB.getOrDefault(product.getId(), new ArrayList<>());
+    
+        logger.info("[GET SUPPLIERS] Product: {} | Count: {}", product.getId(), list.size());
+    
+        return list;
     }
 
     @Override
     public Supplier getBestSupplier(Product product) {
-        List<Supplier> suppliers = supplierDB.get(product.getId());
-
-        if (suppliers == null || suppliers.isEmpty()) {
-            throw new RuntimeException("No suppliers found for product: " + product.getId());
-        }
-
-        Supplier bestSupplier = null;
-        double bestScore = Double.MAX_VALUE;
-
-        for (Supplier supplier : suppliers) {
-            // Simple weightage formula
-            double score = calculateScore(supplier);
-
-            if (score < bestScore) {
-                bestScore = score;
-                bestSupplier = supplier;
+        try {
+            List<Supplier> suppliers = supplierDB.get(product.getId());
+    
+            if (suppliers == null || suppliers.isEmpty()) {
+                throw new RuntimeException("No suppliers found");
             }
+    
+            Supplier best = suppliers.stream()
+                    .min((a, b) -> Double.compare(calculateScore(a), calculateScore(b)))
+                    .orElse(null);
+    
+            logger.info("[BEST SUPPLIER] Product: {} | Supplier: {}", product.getId(), best.getName());
+    
+            return best;
+    
+        } catch (Exception e) {
+            logger.error("[ERROR BEST SUPPLIER] {}", e.getMessage(), e);
+            throw e;
         }
-
-        return bestSupplier;
     }
 
     // Weightage formula
